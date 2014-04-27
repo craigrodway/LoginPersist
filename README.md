@@ -1,6 +1,6 @@
 #ProcessLoginPersistent#
 
-####Automatically log frontend users into the site via cookies.####
+####Automatically log users into the site via cookies.####
 -----------------------------
 
 ProcessLoginPersistent is a ProcessWire module to support the "Remember Me" functionality for users so that they can remain logged in across browser sessions.
