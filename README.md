@@ -1,9 +1,6 @@
-#ProcessLoginPersistent#
+#LoginPersist#
 
-####Automatically log users into the site via cookies.####
------------------------------
-
-ProcessLoginPersistent is a ProcessWire module to support the "Remember Me" functionality for users so that they can remain logged in across browser sessions.
+LoginPersist is a ProcessWire module to support the "Remember Me" functionality for users so that they can remain logged in across browser sessions.
 
 This module follows industry best practise advice as documented here:
 
@@ -38,7 +35,7 @@ To set persistent logins for every user, automatically, ensure the _Automatic_ c
 To persist logins from a site's custom code, just call this module's `persist()` method once you have authenticated the user, and optionally checked for a "remember me" preference.
 
 ```php
-$persist = wire('modules')->get('ProcessLoginPersistent');
+$persist = wire('modules')->get('LoginPersist');
 $persist->persist();
 ```
 

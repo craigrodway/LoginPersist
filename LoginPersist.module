@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Persistent login for users.
+ * Persistent logins for users.
  *
  * This module supports the functionality that allow users to persist their login
  * to the site across browser sessions, and follows industry best practise.
@@ -17,7 +17,7 @@
  *
  */
 
-class ProcessLoginPersistent extends WireData implements Module, ConfigurableModule {
+class LoginPersist extends WireData implements Module, ConfigurableModule {
 
 
     /**
@@ -28,8 +28,8 @@ class ProcessLoginPersistent extends WireData implements Module, ConfigurableMod
         return array(
             'title' => 'Persistent Login for users.',
             'version' => 100,
-            'summary' => 'Automatically log users into the site using cookies.',
-            'href' => 'https://github.com/craigrodway/ProcessLoginPersistent',
+            'summary' => 'Persist user logins across browser sessions.',
+            'href' => 'https://github.com/craigrodway/LoginPersist',
             'singular' => true,
             'autoload' => true,
         );
@@ -37,7 +37,7 @@ class ProcessLoginPersistent extends WireData implements Module, ConfigurableMod
     }
 
 
-    protected static $dbTable = 'process_login_persistent';
+    protected static $dbTable = 'login_persist';
 
 
     protected static $defaultSettings = array(
