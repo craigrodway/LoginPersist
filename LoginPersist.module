@@ -371,7 +371,7 @@ class LoginPersist extends WireData implements Module, ConfigurableModule {
             } else {
 
                 // Failure! Invalidate all user's persistent login data
-                $this->destroyLogins($user);
+                $this->destroyLogins($cookie->user);
             }
 
         } else {
@@ -504,8 +504,8 @@ class LoginPersist extends WireData implements Module, ConfigurableModule {
      * @return string       Concatenated IP address and user agent string
      */
     private function _getFingerprint() {
-        $hash_algo = wire('config')->userAuthHashType;
-        $str = wire('session')->getIP(true) . $_SERVER['HTTP_USER_AGENT'];
+        $hash_algo = $this->wire('config')->userAuthHashType;
+        $str = $this->wire('session')->getFingerprint();
         return hash($hash_algo, $str);
     }
 
