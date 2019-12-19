@@ -67,9 +67,10 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 
 
 	/**
-	 * Configure the input fields for the backend.
+	 * Module configuration.
 	 *
 	 * @param array $data Module data from the database.
+	 *
 	 */
 	public static function getModuleConfigInputfields(array $data) {
 
@@ -94,7 +95,7 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 		$f->attr('value', 1);
 		$f->attr('checked', $data['useFingerprint'] ? 'checked' : '');
 		$f->label = __('Use fingerprint');
-		$f->description = __('Use additional secutiy checks with the persistent cookie. This ensures that the user IP address and user agent is the same between sessions.');
+		$f->description = __('Check User Agent and/or IP address. This uses the site configuration value for `$config->sessionFingerprint`.');
 		$fields->add($f);
 
 		$f = wire('modules')->get('InputfieldText');
@@ -124,7 +125,7 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 		$f->attr('size', 20);
 		$f->attr('maxlength', 32);
 		$f->label = __('Persistent session identifier');
-		$f->description = __('When a user is logged in via a persistent cookie, this session variable is set to true. Use this within your own code to prevent access to sensitive information or actions.');
+		$f->description = __("When a user is logged in via a persistent cookie, this session variable is set to `true`. Use this within your own code to prevent access to sensitive information or actions. E.g. `\$this->wire('session')->get('persistent'); // true`");
 		$fields->add($f);
 
 		$f = wire('modules')->get('InputfieldAsmSelect');
@@ -160,25 +161,24 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 
 	/**
 	 * Initialise hooks, housekeeping, and try cookie logins.
+	 *
 	 */
 	public function init() {
 		$this->set('doLoginHook', true);
-		$this->session->addHookAfter('login', $this, 'loggedIn');
-		$this->session->addHookAfter('logout', $this, 'loggedOut');
-		$this->_pruneLogins();
+		$this->session->addHookAfter('loginSuccess', $this, 'hookLoggedIn');
+		$this->session->addHookAfter('logoutSuccess', $this, 'hookLoggedOut');
+		$this->session->addHook('keepLoggedIn', $this, 'hookKeepLoggedIn');
+		$this->pruneLogins();
 		$this->attemptLogin();
 	}
 
 
 	/**
-	 * A user has successfully logged in.
+	 * Hook for session()->login: A user has successfully logged in.
+	 * Persist the login if automatic option is turned on.
 	 *
-	 * Persist the login if automatic is turned on.
 	 */
-	public function loggedIn() {
-
-		// A user has successfully logged in.
-
+	public function hookLoggedIn() {
 		// Check if logins should be persisted for all users automatically
 		if ($this->automatic && $this->doLoginHook) {
 			$this->persist();
@@ -187,12 +187,14 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 
 
 	/**
-	 * User logged out. Clear database entries and their cookie.
+	 * Hook for session()->logout: User has logged out.
+	 * Clear database entries and their cookie.
+	 *
 	 */
-	public function loggedOut() {
+	public function hookLoggedOut() {
 
 		// Get info from current cookie so the database entry can be deleted
-		$cookie = $this->_parseCookie();
+		$cookie = $this->parseCookie();
 
 		if ($cookie) {
 
@@ -204,8 +206,8 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 
 			$database = $this->wire('database');
 			$query = $database->prepare($sql);
-			$query->bindValue(":user", $cookie->user, PDO::PARAM_INT);
-			$query->bindValue(":series", $cookie->series, PDO::PARAM_STR);
+			$query->bindValue(":user", $cookie->user, \PDO::PARAM_INT);
+			$query->bindValue(":series", $cookie->series, \PDO::PARAM_STR);
 			$query->execute();
 		}
 
@@ -214,33 +216,43 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 	}
 
 
+	public function hookKeepLoggedIn() {
+		$this->persist();
+	}
+
+
 	/**
 	 * Persist login for current user
 	 *
 	 * @param string $series        Existing series (If regenerating from current autologin)
+	 *
 	 */
 	public function persist($series = false) {
 
 		$user = $this->wire('user');
 		$database = $this->wire('database');
 		$time = time();
-		$fingerprint = $this->_getFingerprint();
+		$fingerprint = $this->wire('session')->getFingerprint();
 
 		// Don't persist logins for guest user
-		if ($user->isGuest()) { return; }
+		if ($user->isGuest()) {
+			return false;
+		}
 
 		// Ensure the user's roles are valid
-		if ( ! $this->checkRoles($user)) { return false; }
+		if ( ! $this->checkRoles($user)) {
+			return false;
+		}
 
 		// Generate a new pair of tokens as they will always be needed
-		list ($public, $private) = $this->_generateKeys();
+		list ($public, $private) = $this->generateKeys();
 
 		if ( ! $series) {
 
 			// No series was present. We are creating a new persistent login for the user.
 
 			// Generate a new string for the series (first param is the hashed random part)
-			list ($series) = $this->_generateKeys();
+			list ($series) = $this->generateKeys();
 
 			$sql = 'INSERT INTO
 						`' . self::$dbTable . '`
@@ -253,11 +265,11 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 					';
 
 			$query = $database->prepare($sql);
-			$query->bindValue(":user", $user->id, PDO::PARAM_INT);
-			$query->bindValue(":series", $series, PDO::PARAM_STR);
-			$query->bindValue(":token", $private, PDO::PARAM_STR);
-			$query->bindValue(":fingerprint", $fingerprint, PDO::PARAM_STR);
-			$query->bindValue(":time", $time, PDO::PARAM_INT);
+			$query->bindValue(":user", $user->id, \PDO::PARAM_INT);
+			$query->bindValue(":series", $series, \PDO::PARAM_STR);
+			$query->bindValue(":token", $private, \PDO::PARAM_STR);
+			$query->bindValue(":fingerprint", $fingerprint, \PDO::PARAM_STR);
+			$query->bindValue(":time", $time, \PDO::PARAM_INT);
 			$query->execute();
 
 		} else {
@@ -269,16 +281,16 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 						token = :token,
 						fingerprint = :fingerprint,
 						created = :time
-					WHERE
-						user = :user AND series = :series
+					WHERE user = :user
+					AND series = :series
 					LIMIT 1';
 
 			$query = $database->prepare($sql);
-			$query->bindValue(":token", $private, PDO::PARAM_STR);
-			$query->bindValue(":fingerprint", $fingerprint, PDO::PARAM_STR);
-			$query->bindValue(":time", $time, PDO::PARAM_INT);
-			$query->bindValue(":user", $user->id, PDO::PARAM_INT);
-			$query->bindValue(":series", $series, PDO::PARAM_STR);
+			$query->bindValue(":token", $private, \PDO::PARAM_STR);
+			$query->bindValue(":fingerprint", $fingerprint, \PDO::PARAM_STR);
+			$query->bindValue(":time", $time, \PDO::PARAM_INT);
+			$query->bindValue(":user", $user->id, \PDO::PARAM_INT);
+			$query->bindValue(":series", $series, \PDO::PARAM_STR);
 			$query->execute();
 		}
 
@@ -294,20 +306,23 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 
 
 	/**
-	 * Make a persistent login attempt by reading a cookie
+	 * Make a persistent login attempt by checking cookie.
+	 *
 	 */
 	public function attemptLogin() {
 
-		// Do not continue if user is not a guest (means they're already logged in)
+		// Do not continue if user is not a guest (a user is already logged in)
 		if ( ! $this->wire('user')->isGuest()) {
-			return;
+			return false;
 		}
 
 		$database = $this->wire('database');
-		$fingerprint = $this->_getFingerprint();
+		$fingerprint = $this->wire('session')->getFingerprint();
+		$cookie = $this->parseCookie();
 
-		$cookie = $this->_parseCookie();
-		if ( ! $cookie) { return; }
+		if ( ! $cookie) {
+			return false;
+		}
 
 		// Get matching DB entry
 		$sql = 'SELECT * FROM `' . self::$dbTable . '`
@@ -315,128 +330,106 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 				LIMIT 1';
 
 		$query = $database->prepare($sql);
-		$query->bindValue(":user", $cookie->user, PDO::PARAM_INT);
-		$query->bindValue(":series", $cookie->series, PDO::PARAM_INT);
+		$query->bindValue(":user", $cookie->user, \PDO::PARAM_INT);
+		$query->bindValue(":series", $cookie->series, \PDO::PARAM_INT);
 		$query->execute();
 		$numRows = $query->rowCount();
 
-		if ($numRows) {
-
-			$row = $query->fetch(PDO::FETCH_OBJ);
-
-			if ($this->_validateKeys($cookie->key, $row->token)) {
-
-				// Success!
-
-				// Do a fingerprint check
-				if ($this->useFingerprint && $row->fingerprint !== $fingerprint) {
-
-					// We are using fingerprint for additional check but it failed
-					$this->destroyLogins($cookie->user);
-					return;
-				}
-
-				// Get the user and log them in
-				$u = $this->wire('users')->get('id=' . $cookie->user);
-				$name = $u->name;
-				$pass = $row->token;
-
-				// Ensure the user's roles are valid
-				if ( ! $this->checkRoles($u)) { return false; }
-
-				// Put the temporary credentials in the session
-				$this->wire('session')->set('tmp_pass', $pass);
-				$this->wire('session')->set('tmp_name', $name);
-
-				// login() calls authenticate() with username & password.
-				// We should handle the authenticate() method so we can return true.
-				$this->wire('session')->addHookAfter('authenticate', $this, 'authenticate');
-
-				// The login hook could potentially run persist(), conflicting with the one we do here.
-				// Specify a flag so the login hook does not run.
-				$this->doLoginHook = false;
-
-				// Log them in
-				$this->wire('session')->login($name, $pass);
-
-				// Set the session persistent identifier
-				$this->wire('session')->set($this->get('persistentId'), true);
-
-				// Create new persistent login with the existing series
-				$this->persist($cookie->series);
-
-			} else {
-
-				// Failure! Invalidate all user's persistent login data
-				$this->destroyLogins($user);
-			}
-
-		} else {
-
-			// Cookie, but no matching database entry
+		if ( ! $numRows) {
+			// Got cookie data, but no matching database entry
 			// Clear the cookie
 			setcookie($this->get('cookieName'), '', time() - 42000, '/');
+			return false;
 		}
+
+		$row = $query->fetch(\PDO::FETCH_OBJ);
+
+		if ( ! $this->validateKeys($cookie->key, $row->token)) {
+			// Key matching failure. Invalidate all user's persistent login data
+			$this->destroyLogins($cookie->user);
+		}
+
+		// Success!
+		//
+
+		// Do a fingerprint check
+		if ($this->useFingerprint && $row->fingerprint !== $fingerprint) {
+			// We are using fingerprint for additional check but it failed
+			$this->destroyLogins($cookie->user);
+			return false;
+		}
+
+		// Get the user and log them in
+		$u = $this->wire('users')->get('id=' . $cookie->user);
+		if ( ! $u->id) {
+			return false;
+		}
+
+		// Ensure the user's roles are valid
+		if ( ! $this->checkRoles($u)) {
+			return false;
+		}
+
+		// Our loginSuccess hook could call persist().
+		// We don't want that to run in this secnario:
+		// Specify a flag so the login hook does not run.
+		$this->doLoginHook = false;
+
+		// Force user login
+		$this->wire('session')->forceLogin($u);
+
+		// Set the session persistent identifier
+		$this->wire('session')->set($this->get('persistentId'), true);
+
+		// Create new persistent login with the existing series
+		$this->persist($cookie->series);
 	}
 
 
 	/**
 	 * Remove all persistent logins for the specified user
 	 *
-	 * @param int $user     ID of user to remove all persistent login details for
+	 * @param string|User $user ID or User object
+	 * @return void
+	 *
 	 */
-	public function destroyLogins($user = 0) {
+	public function destroyLogins($user) {
 
 		$database = $this->wire('database');
 
 		$sql = 'DELETE FROM `' . self::$dbTable . '`
 				WHERE user = :user';
 
+		if (is_object($user) && $user instanceof User) {
+			$id = $user->id;
+		} else {
+			$id = (int) $user;
+		}
+
 		$query = $database->prepare($sql);
-		$query->bindValue(":user", $user, PDO::PARAM_INT);
+		$query->bindValue(":user", $id, \PDO::PARAM_INT);
 		$query->execute();
 	}
 
 
 	/**
-	 * Hook into the auth process to allow us to log users in.
+	 * Check if a user's roles are permitted to use persistent logins.
 	 *
-	 * This works by setting a temporary "password" for the user in the session.
-	 * We check those against the values we supply ourself and return true.
-	 *
-	 * @param object $event     ProcessWire event
+	 * @param string|User $user ID or User object
 	 * @return bool
-	 */
-	public function authenticate($event) {
-
-		if ($event->return) return;     // already authenticated
-
-		$sess_name = $this->wire('session')->get('tmp_name');
-		$sess_pass = $this->wire('session')->get('tmp_pass');
-
-		$user = $event->arguments('user');
-		$pass = $event->arguments('pass');
-
-		if ($sess_name == $user->name && $sess_pass == $pass) {
-			$this->wire('session')->remove('sess_name');
-			$this->wire('session')->remove('sess_pass');
-			$event->return = true;
-		} else {
-			$event->return = false;
-		}
-	}
-
-
-	/**
-	 * Check if a user's roles are permitted to use persistent logins
 	 *
-	 * @param User $user        User object to check
-	 * @return bool
 	 */
-	public function checkRoles($user = false) {
+	public function checkRoles($user) {
 
 		$roles = $this->get('roles');
-		if (empty($this->roles)) return true;
+		if (empty($this->roles)) {
+			return true;
+		}
+
+		$isUser = (is_object($user) && $user instanceof User);
+		if ( ! $isUser) {
+			$user = $this->wire('users')->get('id=' . (int) $user);
+		}
 
 		foreach ($this->roles as $role) {
 			if ($user->hasRole($role)) {
@@ -449,9 +442,12 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 
 
 	/**
-	 * Remove persistent login entries from the database that have expired
+	 * Remove persistent login entries from the database that have expired.
+	 *
+	 * @return void
+	 *
 	 */
-	private function _pruneLogins() {
+	private function pruneLogins() {
 
 		$database = $this->wire('database');
 
@@ -461,7 +457,7 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 		$sql = 'DELETE FROM `' . self::$dbTable . '` WHERE created <= :time';
 
 		$query = $database->prepare($sql);
-		$query->bindValue(":time", $expires, PDO::PARAM_INT);
+		$query->bindValue(":time", $expires, \PDO::PARAM_INT);
 		$query->execute();
 	}
 
@@ -469,9 +465,10 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 	/**
 	 * Generate a pair of keys
 	 *
-	 * @return array        Simple array with two values, a public and a private
+	 * @return array 2D array with two values: public and private keys
+	 *
 	 */
-	private function _generateKeys() {
+	private function generateKeys() {
 		$hash_algo = $this->wire('config')->userAuthHashType;
 		$salt = (string) $this->wire('config')->userAuthSalt;
 		$public = hash($hash_algo, uniqid(rand()));
@@ -481,13 +478,14 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 
 
 	/**
-	 * Validate keys
+	 * Validate a key pair.
 	 *
-	 * @param string $public        Public part of key
-	 * @param string $private       Private part of key
+	 * @param string $public Public part of key.
+	 * @param string $private Private part of key.
 	 * @return bool
+	 *
 	 */
-	private function _validateKeys($public = '', $private = '') {
+	private function validateKeys($public = '', $private = '') {
 		$hash_algo = $this->wire('config')->userAuthHashType;
 		$salt = (string) $this->wire('config')->userAuthSalt;
 		$check = hash_hmac($hash_algo, $public, $salt);
@@ -496,29 +494,19 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 
 
 	/**
-	 * Get the user's fingerprint
-	 *
-	 * @return string       Concatenated IP address and user agent string
-	 */
-	private function _getFingerprint() {
-		$hash_algo = wire('config')->userAuthHashType;
-		$str = wire('session')->getIP(true) . $_SERVER['HTTP_USER_AGENT'];
-		return hash($hash_algo, $str);
-	}
-
-
-	/**
-	 * Parse the stored cookie and return an object containing the data
+	 * Parse the stored cookie and return an object containing the data.
+	 * If the cookie can't be read or doesn't contain the constituent parts, return value is false.
 	 *
 	 * @return object|boolean
+	 *
 	 */
-	private function _parseCookie() {
+	private function parseCookie() {
 
-		// Got a cookie?
 		$raw_cookie = $this->wire('input')->cookie($this->get('cookieName'));
 
-		// Nope.
-		if ( ! $raw_cookie) return false;
+		if ( ! $raw_cookie) {
+			return false;
+		}
 
 		// Yep.
 		list ($user, $series, $key) = explode(':', $raw_cookie);
@@ -537,7 +525,8 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 
 
 	/**
-	 * Install. Creates database table.
+	 * Install: create database table.
+	 *
 	 */
 	public function ___install() {
 
@@ -556,6 +545,7 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 
 	/**
 	 * Uninstall. Removes database table.
+	 *
 	 */
 	public function ___uninstall() {
 		$this->database->exec("DROP TABLE IF EXISTS `" . self::$dbTable . "`");
