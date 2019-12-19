@@ -1,6 +1,4 @@
-<?php
-
-namespace ProcessWire;
+<?php namespace ProcessWire;
 
 /**
  * Persistent logins for users.
@@ -8,7 +6,7 @@ namespace ProcessWire;
  * This module supports the functionality that allow users to persist their login
  * to the site across browser sessions, and follows industry best practise.
  *
- * @copyright Copyright (C) 2014, Craig A Rodway <craig.rodway@gmail.com>
+ * @copyright Copyright (C) 2019, Craig A Rodway <craig.rodway@gmail.com>
  * @license http://www.gnu.org/licenses/gpl-2.0.txt GNU General Public License, version 2
  *
  */
@@ -24,11 +22,15 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Persistent Login for users.',
-			'version' => '1.0.0',
+			'version' => '2.0.0',
 			'summary' => 'Providing "Stay logged in" functionality for users across browser sessions.',
 			'href' => 'https://github.com/craigrodway/LoginPersist',
 			'singular' => true,
 			'autoload' => true,
+			'requires' => array(
+				'ProcessWire>=3.0.34',
+				'PHP>=5.6.30'
+			)
 		);
 
 	}
@@ -167,7 +169,7 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 		$this->set('doLoginHook', true);
 		$this->session->addHookAfter('loginSuccess', $this, 'hookLoggedIn');
 		$this->session->addHookAfter('logoutSuccess', $this, 'hookLoggedOut');
-		$this->session->addHook('keepLoggedIn', $this, 'hookKeepLoggedIn');
+		$this->session->addHook('persist', $this, 'hookPersist');
 		$this->pruneLogins();
 		$this->attemptLogin();
 	}
@@ -216,8 +218,12 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 	}
 
 
-	public function hookKeepLoggedIn() {
-		$this->persist();
+	/**
+	 * Shortcut hook method on PW Session class to call $this->persist().
+	 *
+	 */
+	public function hookPersist() {
+		return $this->persist();
 	}
 
 
@@ -302,6 +308,8 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 		$expires = strtotime("+{$expires} days");
 
 		setcookie($this->get('cookieName'), $value, $expires, '/', null, false, true);
+
+		return true;
 	}
 
 
@@ -382,7 +390,7 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 		$this->wire('session')->set($this->get('persistentId'), true);
 
 		// Create new persistent login with the existing series
-		$this->persist($cookie->series);
+		return $this->persist($cookie->series);
 	}
 
 
@@ -408,7 +416,7 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 
 		$query = $database->prepare($sql);
 		$query->bindValue(":user", $id, \PDO::PARAM_INT);
-		$query->execute();
+		return $query->execute();
 	}
 
 
@@ -458,7 +466,7 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 
 		$query = $database->prepare($sql);
 		$query->bindValue(":time", $expires, \PDO::PARAM_INT);
-		$query->execute();
+		return $query->execute();
 	}
 
 
