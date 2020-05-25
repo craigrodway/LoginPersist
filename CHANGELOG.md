@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.1.0] - 2020-05-*
+## [2.1.0] - 2020-05-25
 
 ### Added
 - Restrict usage by role as well as allow.
