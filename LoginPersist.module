@@ -138,7 +138,8 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 	 * Shortcut hook method on PW Session class to call $this->persist().
 	 *
 	 */
-	public function hookPersist() {
+	public function hookPersist()
+	{
 		return $this->persist();
 	}
 
