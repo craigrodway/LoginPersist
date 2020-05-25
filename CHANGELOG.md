@@ -1,20 +1,25 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-
-## 2.0.0 - 2019-12-19
+## [2.1.0] - 2020-05-*
 
 ### Added
-- PHP and ProcessWire module requirements.
+- Restrict usage by role as well as allow.
+- Clear all persistent logins `destroyLogins()`
+
+### Changed
+- `checkRoles($user)` is now hookable.
+- Visual layout of module configuration.
+- General code maintenance.
+
+
+## [2.0.0] - 2019-12-19
+
+### Added
+- Requirements for PHP and ProcessWire versions.
 - New hook method `Session::persist()` as a shortcut when using manual mode.
 
 ### Changed
 - Login process now uses `Session::forceLogin()` instead of hooking `authenticate`.
-- Documentation.
 
 ### Fixed
 - Issue when referring to undefined `$user` variable.
