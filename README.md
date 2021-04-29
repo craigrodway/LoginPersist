@@ -2,7 +2,8 @@
 
 By Craig A Rodway.
 
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![License: GPL v3](https://img.shields.io/static/v1?label=License&message=GPLv3&color=3DA639&style=flat-square)](https://www.gnu.org/licenses/gpl-3.0)
+[![ProcessWire 3](https://img.shields.io/static/v1?label=ProcessWire&message=3.x&color=2480e6&style=flat-square&logo=processwire)](https://github.com/processwire/processwire)
 
 LoginPersist is a module for the [ProcessWire CMS/CMF](https://processwire.com/) that provides "Remember Me" functionality for users so that they can remain logged in across browser sessions.
 
