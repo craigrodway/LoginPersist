@@ -130,7 +130,11 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 		}
 
 		// Clear their cookie
-		setcookie($this->get('cookieName'), '', time() - 42000, '/');
+		$this->wire('input')->cookie->set($this->get('cookieName'), '', [
+			'expires' => time() - 42000,
+			'path' => '/',
+			'domain' => null,
+		]);
 	}
 
 
@@ -223,7 +227,13 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 		$expires = (int) $this->get('cookieExpires');
 		$expires = strtotime("+{$expires} days");
 
-		setcookie($this->get('cookieName'), $value, $expires, '/', null, false, true);
+		$this->wire('input')->cookie->set($this->get('cookieName'), $value, [
+			'expires' => $expires,
+			'path' => '/',
+			'domain' => null,
+			'secure' => false,
+			'httponly' => true,
+		]);
 
 		return true;
 	}
@@ -262,7 +272,11 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 		if ( ! $numRows) {
 			// Got cookie data, but no matching database entry
 			// Clear the cookie
-			setcookie($this->get('cookieName'), '', time() - 42000, '/');
+			$this->wire('input')->cookie->set($this->get('cookieName'), '', [
+				'expires' => time() - 42000,
+				'path' => '/',
+				'domain' => null,
+			]);
 			return false;
 		}
 
