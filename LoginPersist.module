@@ -285,6 +285,7 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 		if ( ! $this->validateKeys($cookie->key, $row->token)) {
 			// Key matching failure. Invalidate all user's persistent login data
 			$this->destroyLogins($cookie->user);
+			return false;
 		}
 
 		// Success!
