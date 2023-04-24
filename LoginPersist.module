@@ -473,13 +473,12 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 	private function parseCookie()
 	{
 		$raw_cookie = $this->wire('input')->cookie($this->get('cookieName'));
+		if ( ! $raw_cookie) return false;
 
-		if ( ! $raw_cookie) {
-			return false;
-		}
-
-		// Yep.
-		list ($user, $series, $key) = explode(':', $raw_cookie);
+		$ingredients = explode(':', $raw_cookie);
+		if (empty($ingredients)) return false;
+		if (count($ingredients) !== 3) return false;
+		list ($user, $series, $key) = $ingredients;
 
 		// Package it up nicely
 		if ($user && $series && $key) {
