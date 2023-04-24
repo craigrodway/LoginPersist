@@ -246,17 +246,13 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 	public function attemptLogin()
 	{
 		// Do not continue if user is not a guest (a user is already logged in)
-		if ( ! $this->wire('user')->isGuest()) {
-			return false;
-		}
+		if ( ! $this->wire('user')->isGuest()) return false;
 
 		$database = $this->wire('database');
 		$fingerprint = $this->wire('session')->getFingerprint();
 		$cookie = $this->parseCookie();
 
-		if ( ! $cookie) {
-			return false;
-		}
+		if ( ! $cookie) return false;
 
 		// Get matching DB entry
 		$sql = 'SELECT * FROM `' . self::DB_TABLE_NAME . '`
