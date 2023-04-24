@@ -28,7 +28,7 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 	{
 		return [
 			'title' => 'LoginPersist',
-			'version' => '2.1.2',
+			'version' => '2.2.0',
 			'summary' => 'Keep users logged in across browser sessions.',
 			'href' => 'https://github.com/craigrodway/LoginPersist',
 			'singular' => true,
