@@ -28,7 +28,7 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 	{
 		return [
 			'title' => 'LoginPersist',
-			'version' => '2.1.2',
+			'version' => '2.2.0',
 			'summary' => 'Keep users logged in across browser sessions.',
 			'href' => 'https://github.com/craigrodway/LoginPersist',
 			'singular' => true,
@@ -130,7 +130,11 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 		}
 
 		// Clear their cookie
-		setcookie($this->get('cookieName'), '', time() - 42000, '/');
+		$this->wire('input')->cookie->set($this->get('cookieName'), null, [
+			'expires' => time() - 42000,
+			'path' => '/',
+			'domain' => null,
+		]);
 	}
 
 
@@ -223,7 +227,13 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 		$expires = (int) $this->get('cookieExpires');
 		$expires = strtotime("+{$expires} days");
 
-		setcookie($this->get('cookieName'), $value, $expires, '/', null, false, true);
+		$this->wire('input')->cookie->set($this->get('cookieName'), $value, [
+			'expires' => $expires,
+			'path' => '/',
+			'domain' => null,
+			'secure' => false,
+			'httponly' => true,
+		]);
 
 		return true;
 	}
@@ -236,17 +246,13 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 	public function attemptLogin()
 	{
 		// Do not continue if user is not a guest (a user is already logged in)
-		if ( ! $this->wire('user')->isGuest()) {
-			return false;
-		}
+		if ( ! $this->wire('user')->isGuest()) return false;
 
 		$database = $this->wire('database');
 		$fingerprint = $this->wire('session')->getFingerprint();
 		$cookie = $this->parseCookie();
 
-		if ( ! $cookie) {
-			return false;
-		}
+		if ( ! $cookie) return false;
 
 		// Get matching DB entry
 		$sql = 'SELECT * FROM `' . self::DB_TABLE_NAME . '`
@@ -262,7 +268,11 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 		if ( ! $numRows) {
 			// Got cookie data, but no matching database entry
 			// Clear the cookie
-			setcookie($this->get('cookieName'), '', time() - 42000, '/');
+			$this->wire('input')->cookie->set($this->get('cookieName'), null, [
+				'expires' => time() - 42000,
+				'path' => '/',
+				'domain' => null,
+			]);
 			return false;
 		}
 
@@ -271,6 +281,7 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 		if ( ! $this->validateKeys($cookie->key, $row->token)) {
 			// Key matching failure. Invalidate all user's persistent login data
 			$this->destroyLogins($cookie->user);
+			return false;
 		}
 
 		// Success!
@@ -462,13 +473,12 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 	private function parseCookie()
 	{
 		$raw_cookie = $this->wire('input')->cookie($this->get('cookieName'));
+		if ( ! $raw_cookie) return false;
 
-		if ( ! $raw_cookie) {
-			return false;
-		}
-
-		// Yep.
-		list ($user, $series, $key) = explode(':', $raw_cookie);
+		$ingredients = explode(':', $raw_cookie);
+		if (empty($ingredients)) return false;
+		if (count($ingredients) !== 3) return false;
+		list ($user, $series, $key) = $ingredients;
 
 		// Package it up nicely
 		if ($user && $series && $key) {
