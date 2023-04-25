@@ -35,7 +35,7 @@ High for impact.
 - Use ProcessWire's 'Input' built-in cookie methods instead of native PHP cookie methods.
 
 ### Fixed
-- Fixxed issue that might raise PHP errors if the cooke isn't in the right format.
+- Fixed issue that might raise PHP errors if the cookie isn't in the right format.
 
 ### Security
 - Fixed issue where theft detection might still allow a successful login.
