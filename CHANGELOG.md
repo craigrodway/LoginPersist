@@ -1,6 +1,27 @@
 # Changelog
 
 
+## [2.3.0] - 2023-06-09
+
+This version fixes an regression from the previous release, where the cookie
+expiration time wasn't being correctly passed from the module to the native
+ProcessWire cookie function, meaning that cookies were only lasting for the
+default time of 7 days.
+
+Due to the native PW cookie function usage, it also bumps the required PW
+version to 3.0.159.
+
+### Fixed
+
+- Use the `expire` key instead of `expires` when calling the PW cookie setting function.
+- Added constructor function to make sure default values are applied.
+
+### Changed
+
+- Updated module dependencies to require PW version 3.0.159 (use of `expire` option key).
+
+
+
 ## [2.2.0] - 2023-04-24
 
 This version fixes cookie function usage in PHP 8 and now relies on ProcessWire's
