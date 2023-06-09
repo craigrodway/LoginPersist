@@ -28,13 +28,13 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 	{
 		return [
 			'title' => 'LoginPersist',
-			'version' => '2.2.0',
+			'version' => '2.3.0',
 			'summary' => 'Keep users logged in across browser sessions.',
 			'href' => 'https://github.com/craigrodway/LoginPersist',
 			'singular' => true,
 			'autoload' => true,
 			'requires' => [
-				'ProcessWire>=3.0.34',
+				'ProcessWire>=3.0.159',
 				'PHP>=5.6.30'
 			],
 		];
@@ -64,6 +64,18 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 			// Deny roles for automatic persist
 			'rolesDeny' => [],
 		];
+	}
+
+
+	/**
+	 * Populate default settings
+	 *
+	 */
+	public function __construct()
+	{
+		foreach (self::getDefaults() as $key => $value) {
+			$this->$key = $value;
+		}
 	}
 
 
@@ -131,7 +143,7 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 
 		// Clear their cookie
 		$this->wire('input')->cookie->set($this->get('cookieName'), null, [
-			'expires' => time() - 42000,
+			'expire' => time() - 42000,
 			'path' => '/',
 			'domain' => null,
 		]);
@@ -228,7 +240,7 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 		$expires = strtotime("+{$expires} days");
 
 		$this->wire('input')->cookie->set($this->get('cookieName'), $value, [
-			'expires' => $expires,
+			'expire' => $expires,
 			'path' => '/',
 			'domain' => null,
 			'secure' => false,
@@ -269,7 +281,7 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 			// Got cookie data, but no matching database entry
 			// Clear the cookie
 			$this->wire('input')->cookie->set($this->get('cookieName'), null, [
-				'expires' => time() - 42000,
+				'expire' => time() - 42000,
 				'path' => '/',
 				'domain' => null,
 			]);
