@@ -37,7 +37,7 @@ You you have full control over when and where you call the module's persistence 
 You will need the following to make use of this module:
 
 - PHP 5.6.30 or newer
-- ProcessWire 3.0.34 or newer
+- ProcessWire 3.0.159 or newer
 
 
 ## Installing
