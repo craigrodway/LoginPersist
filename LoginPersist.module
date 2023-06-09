@@ -68,6 +68,18 @@ class LoginPersist extends WireData implements Module, ConfigurableModule
 
 
 	/**
+	 * Populate default settings
+	 *
+	 */
+	public function __construct()
+	{
+		foreach (self::getDefaults() as $key => $value) {
+			$this->$key = $value;
+		}
+	}
+
+
+	/**
 	 * Initialise hooks, housekeeping, and try cookie logins.
 	 *
 	 */
